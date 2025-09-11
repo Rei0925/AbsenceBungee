@@ -3,11 +3,11 @@ package com.github.rei0925.absenceBungee
 import co.aikar.commands.BaseCommand
 import co.aikar.commands.annotation.*
 import net.md_5.bungee.api.CommandSender
+import net.md_5.bungee.api.connection.ProxiedPlayer
 
 @Suppress("unused")
 @CommandAlias("absence")
 class CommandListener : BaseCommand() {
-    @Default
     @Subcommand("list")
     @Description("不在届提出者を一覧表示")
     fun absenceList(sender: CommandSender){
@@ -19,6 +19,14 @@ class CommandListener : BaseCommand() {
     @Syntax("<player>")
     fun absenceCheck(sender: CommandSender, target: String){
         CommandManager.check(sender,target)
+    }
+    @Default
+    fun checkMe(sender: CommandSender){
+        if(sender is ProxiedPlayer) {
+            CommandManager.check(sender, sender.name)
+        }else{
+            print("このコマンドはプレイヤーのみ実行可能です。")
+        }
     }
 }
 
