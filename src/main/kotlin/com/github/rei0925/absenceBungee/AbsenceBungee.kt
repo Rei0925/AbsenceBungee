@@ -1,0 +1,65 @@
+package com.github.rei0925.absenceBungee
+
+import co.aikar.commands.BungeeCommandManager
+import net.md_5.bungee.api.ProxyServer
+import net.md_5.bungee.api.plugin.Plugin
+import java.sql.Connection
+import java.sql.SQLException
+
+class AbsenceBungee : Plugin() {
+
+    private var connection: Connection? = null
+
+    companion object {
+        lateinit var dbManager: DbManager
+            private set
+    }
+
+    override fun onEnable() {
+        // config.ymlをコピーするよん
+        val configFile = java.io.File(dataFolder, "config.yml")
+        if (!configFile.exists()) {
+            if (!dataFolder.exists()) {
+                dataFolder.mkdirs()
+            }
+            // resources/config.yml を dataFolder にコピー
+            getResourceAsStream("config.yml")?.use { input ->
+                configFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        }
+
+        // config.ymlをロード
+        val config = net.md_5.bungee.config.ConfigurationProvider.getProvider(
+            net.md_5.bungee.config.YamlConfiguration::class.java
+        ).load(configFile)
+
+        dbManager = DbManager(
+            config.getString("database.url"),
+            config.getString("database.user"),
+            config.getString("database.password")
+        )
+
+        val commandManager = BungeeCommandManager(this)
+
+        // タブ補完登録
+        commandManager.commandCompletions.registerCompletion("players") { context ->
+            dbManager.getAllPlayerNames()
+        }
+
+        // コマンド登録
+        commandManager.registerCommand(CommandListener())
+    }
+
+    override fun onDisable() {
+        // Plugin shutdown logic
+        connection?.let {
+            try {
+                it.close()
+            } catch (e: SQLException) {
+                proxy.logger.severe("Error closing database connection: ${e.message}")
+            }
+        }
+    }
+}

@@ -1,0 +1,133 @@
+package com.github.rei0925.absenceBungee
+
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.SQLException
+import kotlin.io.use
+
+class DbManager(
+    private val url: String,
+    private val user: String,
+    private val password: String
+) {
+    private var connection: Connection? = null
+
+    init {
+        try {
+            // Explicitly load MariaDB JDBC driver
+            Class.forName("org.mariadb.jdbc.Driver")
+            connection = DriverManager.getConnection(url, user, password)
+            setupDatabase()
+        } catch (e: ClassNotFoundException) {
+            e.printStackTrace()
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun setupDatabase() {
+        try {
+            // Create database if not exists
+            connection?.createStatement()?.use { stmt ->
+                stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS Absence")
+            }
+            // Switch to Absence database
+            connection?.createStatement()?.use { stmt ->
+                stmt.executeUpdate("USE Absence")
+            }
+            // Create table if not exists
+            connection?.createStatement()?.use { stmt ->
+                stmt.executeUpdate(
+                    """
+                    CREATE TABLE IF NOT EXISTS AbsencePlayerList (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(50),
+                        uuid VARCHAR(36),
+                        end_date DATE
+                    )
+                    """.trimIndent()
+                )
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun getAllPlayers(): List<Map<String, Any>> {
+        val result = mutableListOf<Map<String, Any>>()
+        try {
+            connection?.prepareStatement("SELECT * FROM AbsencePlayerList")?.use { stmt ->
+                stmt.executeQuery().use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, Any>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i)] = rs.getObject(i) ?: ""
+                        }
+                        result.add(row)
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
+    fun getPlayerByUuid(uuid: String): Map<String, Any>? {
+        try {
+            connection?.prepareStatement("SELECT * FROM AbsencePlayerList WHERE uuid = ?")?.use { stmt ->
+                stmt.setString(1, uuid)
+                stmt.executeQuery().use { rs ->
+                    val meta = rs.metaData
+                    if (rs.next()) {
+                        val row = mutableMapOf<String, Any>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i)] = rs.getObject(i) ?: ""
+                        }
+                        return row
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
+    fun getPlayerByName(name: String): Map<String, Any>? {
+        try {
+            connection?.prepareStatement("SELECT * FROM AbsencePlayerList WHERE name = ?")?.use { stmt ->
+                stmt.setString(1, name)
+                stmt.executeQuery().use { rs ->
+                    val meta = rs.metaData
+                    if (rs.next()) {
+                        val row = mutableMapOf<String, Any>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i)] = rs.getObject(i) ?: ""
+                        }
+                        return row
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return null
+    }
+    fun getAllPlayerNames(): List<String> {
+        val names = mutableListOf<String>()
+        try {
+            connection?.prepareStatement("SELECT name FROM AbsencePlayerList")?.use { stmt ->
+                stmt.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        names.add(rs.getString("name"))
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return names
+    }
+}
