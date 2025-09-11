@@ -47,9 +47,13 @@ class AbsenceBungee : Plugin() {
         commandManager.commandCompletions.registerCompletion("players") { context ->
             dbManager.getAllPlayerNames()
         }
+        commandManager.commandCompletions.registerCompletion("online_players") { context ->
+            ProxyServer.getInstance().players.map { it.name }
+        }
 
         // コマンド登録
         commandManager.registerCommand(CommandListener())
+        commandManager.registerCommand(CommandListenerAdmin())
     }
 
     override fun onDisable() {

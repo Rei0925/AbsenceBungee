@@ -115,6 +115,7 @@ class DbManager(
         }
         return null
     }
+
     fun getAllPlayerNames(): List<String> {
         val names = mutableListOf<String>()
         try {
@@ -129,5 +130,53 @@ class DbManager(
             e.printStackTrace()
         }
         return names
+    }
+
+    fun playerExists(name: String, uuid: String): Boolean {
+        try {
+            connection?.prepareStatement("SELECT 1 FROM AbsencePlayerList WHERE name = ? OR uuid = ? LIMIT 1")?.use { stmt ->
+                stmt.setString(1, name)
+                stmt.setString(2, uuid)
+                stmt.executeQuery().use { rs ->
+                    if (rs.next()) {
+                        return true
+                    }
+                }
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return false
+    }
+
+    fun addPlayerIfNotExists(name: String, uuid: String, endDate: String): Boolean {
+        if (playerExists(name, uuid)) {
+            return false
+        }
+        try {
+            connection?.prepareStatement("INSERT INTO AbsencePlayerList (name, uuid, end_date) VALUES (?, ?, ?)")?.use { stmt ->
+                stmt.setString(1, name)
+                stmt.setString(2, uuid)
+                stmt.setString(3, endDate)
+                stmt.executeUpdate()
+                return true
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return false
+    }
+
+    fun removePlayerByName(name: String): Boolean {
+        try {
+            connection?.prepareStatement("DELETE FROM AbsencePlayerList WHERE name = ?")?.use { stmt ->
+                stmt.setString(1, name)
+                val updatedRows = stmt.executeUpdate()
+                return updatedRows > 0
+            }
+        } catch (e: SQLException) {
+            e.printStackTrace()
+        }
+        return false
     }
 }

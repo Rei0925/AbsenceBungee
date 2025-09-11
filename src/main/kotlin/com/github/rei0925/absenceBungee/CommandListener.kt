@@ -1,14 +1,8 @@
 package com.github.rei0925.absenceBungee
 
 import co.aikar.commands.BaseCommand
-import co.aikar.commands.annotation.CommandAlias
-import co.aikar.commands.annotation.CommandCompletion
-import co.aikar.commands.annotation.Default
-import co.aikar.commands.annotation.Description
-import co.aikar.commands.annotation.Subcommand
-import co.aikar.commands.annotation.Syntax
+import co.aikar.commands.annotation.*
 import net.md_5.bungee.api.CommandSender
-import net.md_5.bungee.api.connection.ProxiedPlayer
 
 @Suppress("unused")
 @CommandAlias("absence")
@@ -25,5 +19,24 @@ class CommandListener : BaseCommand() {
     @Syntax("<player>")
     fun absenceCheck(sender: CommandSender, target: String){
         CommandManager.check(sender,target)
+    }
+}
+
+@Suppress("unused")
+@CommandAlias("absence-admin")
+class CommandListenerAdmin : BaseCommand(){
+    @CommandAlias("add")
+    @Description("不在届けを追加")
+    @CommandCompletion("@online_players YYYY-MM-DD")
+    @Syntax("<player> <end_date>")
+    fun adminAdd(sender: CommandSender, target: String, endDate: String) {
+        CommandManager.add(sender,target,endDate)
+    }
+    @CommandAlias("del")
+    @Description("不在届けを削除")
+    @CommandCompletion("@players")
+    @Syntax("<player>")
+    fun adminDel(sender: CommandSender,target: String){
+        CommandManager.del(sender,target)
     }
 }

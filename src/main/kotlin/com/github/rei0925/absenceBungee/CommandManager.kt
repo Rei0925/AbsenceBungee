@@ -1,7 +1,10 @@
 package com.github.rei0925.absenceBungee
 
 import net.md_5.bungee.api.CommandSender
+import net.md_5.bungee.api.ProxyServer
 import net.md_5.bungee.api.chat.TextComponent
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 
 object CommandManager {
     fun list(sender: CommandSender){
@@ -44,6 +47,52 @@ object CommandManager {
             } else {
                 sender.sendMessage(TextComponent("§cプレイヤー $target の情報が見つかりませんでした。"))
             }
+        }
+    }
+
+    fun add(sender: CommandSender, target: String, endDate: String) {
+        // 日付チェック
+        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
+        val parsedDate: LocalDate
+        try {
+            parsedDate = LocalDate.parse(endDate) // YYYY-MM-DD形式
+        } catch (e: DateTimeParseException) {
+            sender.sendMessage(TextComponent("§c日付の形式が不正です。YYYY-MM-DDで入力してください。"))
+            return
+        }
+
+        // オンラインならUUIDを取得、オフラインなら空文字
+        val proxiedPlayer = ProxyServer.getInstance().getPlayer(target)
+        val uuid = proxiedPlayer?.uniqueId?.toString() ?: ""
+
+        // DB に追加（重複を避ける）
+        val added = AbsenceBungee.dbManager.addPlayerIfNotExists(target, uuid, parsedDate.toString())
+
+        if (added) {
+            sender.sendMessage(TextComponent("§aプレイヤー $target の不在届を追加しました。終了日: §c$parsedDate"))
+        } else {
+            sender.sendMessage(TextComponent("§eプレイヤー $target の不在届は既に存在します。"))
+        }
+    }
+
+    fun del(sender: CommandSender, target: String) {
+        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
+        try {
+            // UUID is unknown, pass empty string
+            val exists = AbsenceBungee.dbManager.playerExists(target, "")
+            if (!exists) {
+                sender.sendMessage(TextComponent("§cプレイヤー $target の情報が見つかりませんでした。"))
+                return
+            }
+            // Delete player from AbsencePlayerList using dbManager method
+            val removed = AbsenceBungee.dbManager.removePlayerByName(target)
+            if (removed) {
+                sender.sendMessage(TextComponent("§aプレイヤー $target の不在届情報を削除しました。"))
+            } else {
+                sender.sendMessage(TextComponent("§cプレイヤー $target の削除に失敗しました。"))
+            }
+        } catch (e: Exception) {
+            sender.sendMessage(TextComponent("§c削除中にエラーが発生しました: ${e.message}"))
         }
     }
 }
