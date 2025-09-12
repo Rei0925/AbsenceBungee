@@ -1,6 +1,7 @@
 package com.github.rei0925.absenceBungee
 
 import co.aikar.commands.BungeeCommandManager
+import net.kyori.adventure.platform.bungeecord.BungeeAudiences
 import net.md_5.bungee.api.ProxyServer
 import net.md_5.bungee.api.plugin.Plugin
 import java.sql.Connection
@@ -12,6 +13,8 @@ class AbsenceBungee : Plugin() {
 
     companion object {
         lateinit var dbManager: DbManager
+            private set
+        lateinit var adventure: BungeeAudiences
             private set
     }
 
