@@ -1,5 +1,7 @@
 package com.github.rei0925.absenceBungee
 
+import com.github.rei0925.absenceBungee.AbsenceComponent.PLAYER_CHECK
+import com.github.rei0925.absenceBungee.AbsenceComponent.PLAYER_NOT_FOUND
 import net.md_5.bungee.api.CommandSender
 import net.md_5.bungee.api.ProxyServer
 import net.md_5.bungee.api.chat.TextComponent
@@ -7,7 +9,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
 object CommandManager {
+
+    private val AUDIENCES = AbsenceBungee.adventure
     fun list(sender: CommandSender){
+        val audience = AUDIENCES.sender(sender)
         val header = TextComponent("§6長期不在届提出者情報》")
 
         sender.sendMessage(header)
@@ -22,9 +27,9 @@ object CommandManager {
     }
     fun check(sender: CommandSender, target: String) {
         // Send header
-        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
+        val audience = AUDIENCES.sender(sender)
 
-        val proxiedPlayer = net.md_5.bungee.api.ProxyServer.getInstance().getPlayer(target)
+        val proxiedPlayer = ProxyServer.getInstance().getPlayer(target)
         if (proxiedPlayer != null) {
             // Player is online
             val playerData = AbsenceBungee.dbManager.getPlayerByName(proxiedPlayer.name)
@@ -32,9 +37,9 @@ object CommandManager {
                 val name = playerData["name"]?.toString() ?: "Unknown"
                 val endDateRaw = playerData["end_date"]?.toString() ?: "0000-00-00"
                 val formattedDate = endDateRaw.substring(2, 4) + "-" + endDateRaw.substring(5, 7) + "-" + endDateRaw.substring(8, 10)
-                sender.sendMessage(TextComponent("§a$name§fは§c~$formattedDate§fで不在届を受理しています。"))
+                audience.sendMessage(PLAYER_CHECK(name,formattedDate))
             } else {
-                sender.sendMessage(TextComponent("§cプレイヤー ${proxiedPlayer.name} の情報が見つかりませんでした。"))
+                audience.sendMessage(PLAYER_NOT_FOUND(target))
             }
         } else {
             // Player is offline, try to get from DB

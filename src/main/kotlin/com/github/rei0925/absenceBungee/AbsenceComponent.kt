@@ -16,7 +16,6 @@ internal object AbsenceComponent {
         builder.append(Component.text(" ~", NamedTextColor.RED))
         builder.append(Component.text(date, NamedTextColor.RED))
         builder.append(Component.text("で長期不在届を受理しています。", NamedTextColor.WHITE))
-        builder.build()
     }
 
     val PLAYER_NOT_FOUND ={ player: String ->
