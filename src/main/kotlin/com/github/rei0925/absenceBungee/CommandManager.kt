@@ -24,7 +24,7 @@ object CommandManager {
         // Send header
         sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
 
-        val proxiedPlayer = net.md_5.bungee.api.ProxyServer.getInstance().getPlayer(target)
+        val proxiedPlayer = ProxyServer.getInstance().getPlayer(target)
         if (proxiedPlayer != null) {
             // Player is online
             val playerData = AbsenceBungee.dbManager.getPlayerByName(proxiedPlayer.name)
