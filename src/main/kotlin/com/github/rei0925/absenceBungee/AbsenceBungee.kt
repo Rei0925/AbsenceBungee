@@ -15,10 +15,11 @@ class AbsenceBungee : Plugin() {
         lateinit var dbManager: DbManager
             private set
         lateinit var adventure: BungeeAudiences
-            private set
     }
 
     override fun onEnable() {
+        adventure = BungeeAudiences.create(this)
+        //CommandManager.adventure = adventure
         // config.ymlをコピーするよん
         val configFile = java.io.File(dataFolder, "config.yml")
         if (!configFile.exists()) {

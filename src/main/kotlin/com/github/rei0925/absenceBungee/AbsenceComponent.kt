@@ -11,12 +11,12 @@ internal object AbsenceComponent {
     val PLAYER_CHECK ={ name:String,date:String ->
         val builder = Component.text()
         builder.append(HEADER)
-        builder.append(Component.newline())
         builder.append(Component.text(name, NamedTextColor.GREEN))
         builder.append(Component.text("は", NamedTextColor.WHITE))
         builder.append(Component.text(" ~", NamedTextColor.RED))
         builder.append(Component.text(date, NamedTextColor.RED))
         builder.append(Component.text("で長期不在届を受理しています。", NamedTextColor.WHITE))
+        builder.build()
     }
 
     val PLAYER_NOT_FOUND ={ player: String ->
