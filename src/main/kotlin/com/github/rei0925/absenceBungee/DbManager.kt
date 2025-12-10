@@ -3,12 +3,11 @@ package com.github.rei0925.absenceBungee
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
-import kotlin.io.use
 
 class DbManager(
-    private val url: String,
-    private val user: String,
-    private val password: String
+    url: String,
+    user: String,
+    password: String
 ) {
     private var connection: Connection? = null
 

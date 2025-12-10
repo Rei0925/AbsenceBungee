@@ -1,40 +1,51 @@
 package com.github.rei0925.absenceBungee
 
+import net.kyori.adventure.audience.Audience
 import net.md_5.bungee.api.CommandSender
 import net.md_5.bungee.api.ProxyServer
-import net.md_5.bungee.api.chat.TextComponent
+import java.net.URL
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 
-object CommandManager {
-    fun list(sender: CommandSender){
-        val header = TextComponent("§6長期不在届提出者情報》")
+class CommandManager(
+    private val absenceBungee: AbsenceBungee
+) {
 
-        sender.sendMessage(header)
+    fun list(sender: CommandSender) {
+        val audience = AbsenceBungee.adventure.sender(sender)
+
+        audience.sendMessage(AbsenceComponent.LIST_HEADER)
+
         val players = AbsenceBungee.dbManager.getAllPlayers()
+
         for (player in players) {
             val name = player["name"]?.toString() ?: "Unknown"
             val endDate = player["end_date"]?.toString() ?: "0000-00-00"
-            val formattedDate = endDate.substring(2, 4) + "-" + endDate.substring(5, 7) + "-" + endDate.substring(8, 10)
-            val line = TextComponent("§a$name ~$formattedDate")
-            sender.sendMessage(line)
+
+            val formatted = endDate.substring(2, 4) + "-" +
+                    endDate.substring(5, 7) + "-" +
+                    endDate.substring(8, 10)
+
+            audience.sendMessage(
+                AbsenceComponent.LIST_LINE(name, formatted)
+            )
         }
     }
     fun check(sender: CommandSender, target: String) {
-        // Send header
-        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
-
         val proxiedPlayer = ProxyServer.getInstance().getPlayer(target)
+        val audience = AbsenceBungee.adventure.sender(sender)
+
         if (proxiedPlayer != null) {
-            // Player is online
+
             val playerData = AbsenceBungee.dbManager.getPlayerByName(proxiedPlayer.name)
             if (playerData != null) {
                 val name = playerData["name"]?.toString() ?: "Unknown"
                 val endDateRaw = playerData["end_date"]?.toString() ?: "0000-00-00"
                 val formattedDate = endDateRaw.substring(2, 4) + "-" + endDateRaw.substring(5, 7) + "-" + endDateRaw.substring(8, 10)
-                sender.sendMessage(TextComponent("§a$name§fは§c~$formattedDate§fで不在届を受理しています。"))
+                audience.sendMessage(AbsenceComponent.PLAYER_CHECK(name,formattedDate))
+
             } else {
-                sender.sendMessage(TextComponent("§cプレイヤー ${proxiedPlayer.name} の情報が見つかりませんでした。"))
+                audience.sendMessage(AbsenceComponent.DATA_NOT_FOUND(proxiedPlayer.name))
             }
         } else {
             // Player is offline, try to get from DB
@@ -43,56 +54,102 @@ object CommandManager {
                 val name = playerData["name"]?.toString() ?: "Unknown"
                 val endDateRaw = playerData["end_date"]?.toString() ?: "0000-00-00"
                 val formattedDate = endDateRaw.substring(2, 4) + "-" + endDateRaw.substring(5, 7) + "-" + endDateRaw.substring(8, 10)
-                sender.sendMessage(TextComponent("§a$name§fは§c~$formattedDate§fで不在届を受理しています。"))
+                audience.sendMessage(AbsenceComponent.PLAYER_CHECK(name,formattedDate))
             } else {
-                sender.sendMessage(TextComponent("§cプレイヤー $target の情報が見つかりませんでした。"))
+                audience.sendMessage(AbsenceComponent.DATA_NOT_FOUND(target))
             }
         }
     }
 
     fun add(sender: CommandSender, target: String, endDate: String) {
-        // 日付チェック
-        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
-        val parsedDate: LocalDate
-        try {
-            parsedDate = LocalDate.parse(endDate) // YYYY-MM-DD形式
+        val audience = AbsenceBungee.adventure.sender(sender)
+
+        val parsedDate = try {
+            LocalDate.parse(endDate)
         } catch (e: DateTimeParseException) {
-            sender.sendMessage(TextComponent("§c日付の形式が不正です。YYYY-MM-DDで入力してください。"))
+            audience.sendMessage(AbsenceComponent.DATE_FORMAT_INVALID)
             return
         }
 
-        // オンラインならUUIDを取得、オフラインなら空文字
         val proxiedPlayer = ProxyServer.getInstance().getPlayer(target)
-        val uuid = proxiedPlayer?.uniqueId?.toString() ?: ""
 
-        // DB に追加（重複を避ける）
-        val added = AbsenceBungee.dbManager.addPlayerIfNotExists(target, uuid, parsedDate.toString())
+        if (proxiedPlayer != null) {
+            val uuid = proxiedPlayer.uniqueId.toString()
+            handleAdd(target, uuid, parsedDate, audience)
+            return
+        }
 
-        if (added) {
-            sender.sendMessage(TextComponent("§aプレイヤー $target の不在届を追加しました。終了日: §c$parsedDate"))
-        } else {
-            sender.sendMessage(TextComponent("§eプレイヤー $target の不在届は既に存在します。"))
+        // ↓ オフライン → Mojang API に非同期問い合わせ
+        ProxyServer.getInstance().scheduler.runAsync(AbsenceBungee.instance) {
+
+            val uuid = fetchUUIDFromMojang(target) // 下に関数実装あり
+
+            ProxyServer.getInstance().scheduler.runAsync(AbsenceBungee.instance) {
+                if (uuid == null) {
+                    audience.sendMessage(AbsenceComponent.DATA_NOT_FOUND(target))
+                    return@runAsync
+                }
+
+                handleAdd(target, uuid, parsedDate, audience)
+            }
         }
     }
 
     fun del(sender: CommandSender, target: String) {
-        sender.sendMessage(TextComponent("§6長期不在届提出者情報》"))
+        val audience = AbsenceBungee.adventure.sender(sender)
+
         try {
-            // UUID is unknown, pass empty string
             val exists = AbsenceBungee.dbManager.playerExists(target, "")
             if (!exists) {
-                sender.sendMessage(TextComponent("§cプレイヤー $target の情報が見つかりませんでした。"))
+                audience.sendMessage(AbsenceComponent.PLAYER_NOT_FOUND(target))
                 return
             }
-            // Delete player from AbsencePlayerList using dbManager method
+
             val removed = AbsenceBungee.dbManager.removePlayerByName(target)
             if (removed) {
-                sender.sendMessage(TextComponent("§aプレイヤー $target の不在届情報を削除しました。"))
+                audience.sendMessage(AbsenceComponent.PLAYER_DELETED(target))
             } else {
-                sender.sendMessage(TextComponent("§cプレイヤー $target の削除に失敗しました。"))
+                audience.sendMessage(AbsenceComponent.DELETE_FAILED)
             }
+
         } catch (e: Exception) {
-            sender.sendMessage(TextComponent("§c削除中にエラーが発生しました: ${e.message}"))
+            audience.sendMessage(AbsenceComponent.ERROR_OCCURED(e.message ?: "不明なエラー"))
+        }
+    }
+
+    private fun handleAdd(name: String, uuid: String, date: LocalDate, audience: Audience) {
+        val added = AbsenceBungee.dbManager.addPlayerIfNotExists(name, uuid, date.toString())
+        if (added) {
+            audience.sendMessage(AbsenceComponent.PLAYER_ADDED(name, date.toString()))
+        } else {
+            audience.sendMessage(AbsenceComponent.PLAYER_ALREADY_EXISTS(name))
+        }
+    }
+
+    private fun fetchUUIDFromMojang(name: String): String? {
+        return try {
+            val url = URL("https://api.mojang.com/users/profiles/minecraft/$name")
+            val conn = url.openConnection()
+            conn.connectTimeout = 3000
+            conn.readTimeout = 3000
+
+            val json = conn.getInputStream().bufferedReader().readText()
+
+            val gson = com.google.gson.Gson()
+            val obj = gson.fromJson(json, Map::class.java)
+
+            val rawId = obj["id"]?.toString() ?: return null
+            formatUUID(rawId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun formatUUID(raw: String): String {
+        return raw.replace(
+            Regex("([0-9a-fA-F]{8})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{12})")
+        ) {
+            "${it.groupValues[1]}-${it.groupValues[2]}-${it.groupValues[3]}-${it.groupValues[4]}-${it.groupValues[5]}"
         }
     }
 }

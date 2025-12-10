@@ -7,23 +7,25 @@ import net.md_5.bungee.api.connection.ProxiedPlayer
 
 @Suppress("unused")
 @CommandAlias("absence")
-class CommandListener : BaseCommand() {
+class CommandListener(
+    private val commandManager: CommandManager
+) : BaseCommand() {
     @Subcommand("list")
     @Description("不在届提出者を一覧表示")
     fun absenceList(sender: CommandSender){
-        CommandManager.list(sender)
+        commandManager.list(sender)
     }
     @Subcommand("check")
     @Description("引数に指定したプレイヤーの状況を確認")
     @CommandCompletion("@players")
     @Syntax("<player>")
     fun absenceCheck(sender: CommandSender, target: String){
-        CommandManager.check(sender,target)
+        commandManager.check(sender,target)
     }
     @Default
     fun checkMe(sender: CommandSender){
         if(sender is ProxiedPlayer) {
-            CommandManager.check(sender, sender.name)
+            commandManager.check(sender, sender.name)
         }else{
             print("このコマンドはプレイヤーのみ実行可能です。")
         }
@@ -32,19 +34,21 @@ class CommandListener : BaseCommand() {
 
 @Suppress("unused")
 @CommandAlias("absence-admin")
-class CommandListenerAdmin : BaseCommand(){
+class CommandListenerAdmin(
+    private val commandManager: CommandManager
+) : BaseCommand(){
     @CommandAlias("add")
     @Description("不在届けを追加")
     @CommandCompletion("@online_players YYYY-MM-DD")
     @Syntax("<player> <end_date>")
     fun adminAdd(sender: CommandSender, target: String, endDate: String) {
-        CommandManager.add(sender,target,endDate)
+        commandManager.add(sender,target,endDate)
     }
     @CommandAlias("del")
     @Description("不在届けを削除")
     @CommandCompletion("@players")
     @Syntax("<player>")
     fun adminDel(sender: CommandSender,target: String){
-        CommandManager.del(sender,target)
+        commandManager.del(sender,target)
     }
 }

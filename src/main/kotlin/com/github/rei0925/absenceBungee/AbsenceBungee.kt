@@ -10,16 +10,19 @@ import java.sql.SQLException
 class AbsenceBungee : Plugin() {
 
     private var connection: Connection? = null
+    lateinit var commandManager: CommandManager
 
     companion object {
+        lateinit var instance: AbsenceBungee
+            private set
         lateinit var dbManager: DbManager
             private set
         lateinit var adventure: BungeeAudiences
     }
 
     override fun onEnable() {
+        instance = this
         adventure = BungeeAudiences.create(this)
-        //CommandManager.adventure = adventure
         // config.ymlをコピーするよん
         val configFile = java.io.File(dataFolder, "config.yml")
         if (!configFile.exists()) {
@@ -44,20 +47,23 @@ class AbsenceBungee : Plugin() {
             config.getString("database.user"),
             config.getString("database.password")
         )
+        commandManager = CommandManager(this)
 
-        val commandManager = BungeeCommandManager(this)
+        val manager = BungeeCommandManager(this)
 
         // タブ補完登録
-        commandManager.commandCompletions.registerCompletion("players") { context ->
+        manager.commandCompletions.registerCompletion("players") { context ->
             dbManager.getAllPlayerNames()
         }
-        commandManager.commandCompletions.registerCompletion("online_players") { context ->
+        manager.commandCompletions.registerCompletion("online_players") { context ->
             ProxyServer.getInstance().players.map { it.name }
         }
 
         // コマンド登録
-        commandManager.registerCommand(CommandListener())
-        commandManager.registerCommand(CommandListenerAdmin())
+        manager.registerCommand(CommandListener(commandManager))
+        manager.registerCommand(CommandListenerAdmin(commandManager))
+        //イベントリスナー登録
+        proxy.pluginManager.registerListener(this, JoinListener())
     }
 
     override fun onDisable() {
